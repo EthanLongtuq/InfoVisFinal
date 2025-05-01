@@ -70,14 +70,12 @@ const complaintDetailsMap = new Map(
   ];
   projection.scale(scale).translate(translate);
 
-  function drawWordCloud(textArray) {
+  function wordCloud(textArray) {
     const width = 400;
     const height = 300;
   
     wordCloudGroup.selectAll("*").remove();
-  
-    const stopWords = new Set(["with", "did", "or", "the", "a", "by", "from", "was", "then", "off", "that", "and", "it", "in", "had", "as", "were", "to", "on", "be", "at", "an", "this", "but", "for", "other", "is", "of"]);
-  
+    const stopWords = new Set(["with", "did", "or", "the", "a", "by", "from", "was", "then", "off", "that", "and", "it", "in", "had", "as", "were", "to", "on", "be", "at", "an", "this", "but", "for", "other", "is", "of", "also", "have", "over", "told", "are", "went", "states", "one", "file", "when", "who", "after", "been", "could", "30pm"]);
     const words = textArray
       .join(" ")
       .toLowerCase()
@@ -106,19 +104,29 @@ const complaintDetailsMap = new Map(
   
     function draw(words) {
       wordCloudGroup
-        .attr("transform", `translate(${950}, ${550})`)
-        .selectAll("text")
-        .data(words)
-        .enter().append("text")
-        .style("font-size", d => `${d.size}px`)
-        .style("fill", "black")
-        .attr("text-anchor", "middle")
-        .attr("transform", d => `translate(${d.x},${d.y})rotate(${d.rotate})`)
-        .text(d => d.text);
+    .attr("transform", `translate(950, 650)`);
+
+  wordCloudGroup.append("text")
+    .attr("x", 50)
+    .attr("y", -180)
+    .attr("text-anchor", "middle")
+    .attr("font-size", "40px")
+    .attr("font-weight", "bold")
+    .style("fill", "darkgreen")
+    .text("Most Common Words in Complaints");
+  wordCloudGroup.selectAll("text.word")
+    .data(words)
+    .enter().append("text")
+    .attr("class", "word")
+    .style("font-size", d => `${d.size}px`)
+    .style("fill", "black")
+    .attr("text-anchor", "middle")
+    .attr("transform", d => `translate(${d.x},${d.y})rotate(${d.rotate})`)
+    .text(d => d.text);
     }
   }
 
-  function drawBarChart(data, districtNum) {
+  function barGraph(data, districtNum) {
     const chartWidth = 400;
     const chartHeight = 300;
     const margin = { top: 30, right: 10, bottom: 40, left: 40 };
@@ -255,13 +263,13 @@ const complaintDetailsMap = new Map(
       d3.select(this).attr("stroke", "#333").attr("stroke-width", 0.5);
     })
     .on("click", function(event, d) {
-        drawBarChart(d.properties.complaintTypes, d.properties.DIST_NUMC);
+        barGraph(d.properties.complaintTypes, d.properties.DIST_NUMC);
       
         const districtSummaries = complaints
           .filter(c => c.district_occurrence.replace(/00$/, '') === d.properties.DIST_NUMC)
           .map(c => c.summary || "");
       
-        drawWordCloud(districtSummaries);
+        wordCloud(districtSummaries);
       });
     console.log([...complaintCounts.entries()]);
 });

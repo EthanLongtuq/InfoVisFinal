@@ -1,15 +1,14 @@
 const width = 960;
 const height = 600;
-
 const tooltip = d3.select("#tooltip");
 const svg = d3.select("#map")
   .attr("width", width)
   .attr("height", height);
-
 const chartGroup = svg.append("g").attr("id", "chart-group");
 const projection = d3.geoMercator().scale(1).translate([0, 0]);
 const path = d3.geoPath().projection(projection);
 const wordCloudGroup = svg.append("g").attr("id", "word-cloud-group");
+const legendGroup = svg.append("g").attr("id", "legend-group");
 
 const complaintCategories = [
     "DEPARTMENTAL VIOLATIONS",
@@ -28,14 +27,12 @@ Promise.all([
   d3.json("Boundaries_District.geojson"),
   d3.csv("ppd_complaints.csv")
 ]).then(([geojson, complaints]) => {
-  // Count complaints by district (strip trailing "00" from CSV)
 const complaintCounts = d3.rollup(
     complaints,
     v => v.length,
     d => d.district_occurrence.replace(/00$/, '')
   );
 
-  // Group complaints by district and then by general classification
 const complaintDetails = d3.rollups(
   complaints,
   v => d3.rollups(
@@ -53,21 +50,15 @@ const complaintDetailsMap = new Map(
   ])
 );
 
-
-  
-  // Attach complaint count to GeoJSON features
   geojson.features.forEach(feature => {
     const district = feature.properties.DIST_NUMC;
     feature.properties.complaints = complaintCounts.get(district) || 0;
     feature.properties.complaintTypes = complaintDetailsMap.get(district) || [];
   });
   
-
-  // Set color scale (red = more complaints)
   const maxCount = d3.max(geojson.features, d => d.properties.complaints);
-  const color = d3.scaleSequential(d3.interpolateReds).domain([0, maxCount]);
+  const color = d3.scaleSequential(d3.interpolateGreens).domain([0, maxCount]);
 
-  // Fit projection
   const bounds = path.bounds(geojson);
   const scale = 0.95 / Math.max(
     (bounds[1][0] - bounds[0][0]) / width,
@@ -85,9 +76,8 @@ const complaintDetailsMap = new Map(
   
     wordCloudGroup.selectAll("*").remove();
   
-    const stopWords = new Set(["the", "and", "to", "of", "in", "a", "on", "for", "with", "at", "by", "an", "as", "was", "is", "from", "it", "that", "were", "be", "this", "or", "but", "off", "had"]);
+    const stopWords = new Set(["with", "did", "or", "the", "a", "by", "from", "was", "then", "off", "that", "and", "it", "in", "had", "as", "were", "to", "on", "be", "at", "an", "this", "but", "for", "other", "is", "of"]);
   
-    // Flatten all text, split into words
     const words = textArray
       .join(" ")
       .toLowerCase()
@@ -116,7 +106,7 @@ const complaintDetailsMap = new Map(
   
     function draw(words) {
       wordCloudGroup
-        .attr("transform", `translate(${950}, ${550})`) // adjust position
+        .attr("transform", `translate(${950}, ${550})`)
         .selectAll("text")
         .data(words)
         .enter().append("text")
@@ -135,10 +125,8 @@ const complaintDetailsMap = new Map(
     const width = chartWidth - margin.left - margin.right;
     const height = chartHeight - margin.top - margin.bottom;
   
-    // Clear old chart
     chartGroup.selectAll("*").remove();
   
-    // Fill in missing categories with 0
     const normalizedData = complaintCategories.map(cat => {
       const match = data.find(d => d.type === cat);
       return { type: cat, count: match ? match.count : 0 };
@@ -157,7 +145,7 @@ const complaintDetailsMap = new Map(
       .attr("transform", `translate(${850}, ${50})`)
       .append("g");
   
-    // X axis
+    //x axis
     g.append("g")
       .attr("transform", `translate(0, ${height})`)
       .call(d3.axisBottom(x))
@@ -166,11 +154,11 @@ const complaintDetailsMap = new Map(
       .attr("transform", "rotate(-30)")
       .style("text-anchor", "end");
   
-    // Y axis
+    //y axis
     g.append("g")
       .call(d3.axisLeft(y).ticks(4));
   
-    // Bars
+    //bars
     g.selectAll("rect")
       .data(normalizedData)
       .enter().append("rect")
@@ -178,9 +166,9 @@ const complaintDetailsMap = new Map(
       .attr("y", d => y(d.count))
       .attr("width", x.bandwidth())
       .attr("height", d => height - y(d.count))
-      .attr("fill", "darkred");
+      .attr("fill", "darkgreen");
   
-    // Bar labels
+    //labels
     g.selectAll(".bar-label")
       .data(normalizedData)
       .enter().append("text")
@@ -190,7 +178,7 @@ const complaintDetailsMap = new Map(
       .attr("font-size", "10px")
       .text(d => d.count);
   
-    // Chart title
+    //title
     chartGroup.append("text")
         .attr("x", chartWidth / 2)
         .attr("y", margin.top / 1.5)
@@ -199,9 +187,52 @@ const complaintDetailsMap = new Map(
         .attr("font-size", "18px")
         .text(`Complaint Types in District ${districtNum}`);
   }
-  
 
-  // Draw regions
+  function drawLegend(colorScale) {
+    const legendWidth = 300;
+    const legendHeight = 10;
+  
+    const legendMargin = { top: 20, right: 20, bottom: 40, left: 20 };
+    const x = d3.scaleLinear()
+      .domain(colorScale.domain())
+      .range([0, legendWidth]);
+    const defs = svg.append("defs");
+    const linearGradient = defs.append("linearGradient")
+      .attr("id", "legend-gradient");
+  
+    linearGradient.selectAll("stop")
+      .data(d3.ticks(0, 1, 10))
+      .enter().append("stop")
+      .attr("offset", d => `${d * 100}%`)
+      .attr("stop-color", d => colorScale(d * colorScale.domain()[1]));
+  
+    legendGroup.append("rect")
+      .attr("x", 250)
+      .attr("y", height - legendMargin.bottom + 50)
+      .attr("width", legendWidth)
+      .attr("height", legendHeight)
+      .style("fill", "url(#legend-gradient)");
+  
+    //axis
+    const axisBottom = d3.axisBottom(x)
+      .ticks(5)
+      .tickFormat(d3.format("d"));
+  
+    legendGroup.append("g")
+      .attr("transform", `translate(250, ${height - legendMargin.bottom + legendHeight + 50})`)
+      .call(axisBottom);
+  
+    //label
+    legendGroup.append("text")
+      .attr("x", 250 + legendWidth / 2)
+      .attr("y", height - legendMargin.bottom + 40)
+      .attr("text-anchor", "middle")
+      .attr("font-size", "12px")
+      .text("Number of Complaints");
+  }
+  
+  drawLegend(color);
+  //regions
   svg.selectAll("path")
     .data(geojson.features)
     .enter().append("path")
@@ -234,77 +265,3 @@ const complaintDetailsMap = new Map(
       });
     console.log([...complaintCounts.entries()]);
 });
-/*
-
-//grab our canvas 
-let svg = d3.select("#canvas");
-
-//set the width and height
-svg.attr('width',500)
-    .attr('height',500)
-
-//set up grid spacing
-let spacing = 40;
-let rows = 3;
-let column = 10;
-
-let data = d3.range(30).map(i => 5);
-let rects = svg.selectAll("rect")
-    .data(data)
-    .join('rect')
-    .attr("x", (d, i) => (i % column) * spacing)
-    .attr("y", (d, i) => Math.floor(i / column) % rows * spacing)
-    .attr("width", 30)
-    .attr("height", 30)
-    .attr("fill", "black");
-
-
-// === Scrollytelling boilerplate === //
-function scroll(n, offset, func1, func2){
-    const el = document.getElementById(n)
-    return new Waypoint({
-        element: document.getElementById(n),
-        handler: function(direction) {
-            direction == 'down' ? func1() : func2();
-        },
-        //start 75% from the top of the div
-        offset: offset
-    });
-    };
-
-    function grid() {
-        rects.transition()
-            .delay((d, i) => 10 * i)
-            .duration(400)
-            .attr("fill", "black");
-    }
-
-    function grid2() {
-        rects.transition()
-            .delay((d, i) => 10 * i)
-            .duration(400)
-            .attr("fill", (d, i) => i >= 13 ? "#946234" : "gray");
-    }
-
-    function grid3() {
-        rects.transition()
-            .delay((d, i) => 10 * i)
-            .duration(400)
-            .attr("fill", (d, i) => (i >= 1 && i <= 12) ? "blue" : "gray");
-    }
-
-    function grid4() {
-        rects.transition()
-            .delay((d, i) => 10 * i)
-            .duration(400)
-            .attr("fill", (d, i) => i === 0 ? "green" : "gray");
-    }
-
-//trigger these functions on page scroll
-new scroll('div2', '75%', grid2, grid);
-new scroll('div3', '75%', grid3, grid2);
-new scroll('div4', '75%', grid4, grid3);
-new scroll('div5', '75%', grid, grid4);
-*/
-
- 

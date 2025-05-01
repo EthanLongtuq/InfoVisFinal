@@ -1,1 +1,1 @@
-Hello
+This project visualizes police complaints in Philadelphia. It starts with a map showing the amount of police complaitns in different police districts. When a district is clicked on, it shows more information about that district. One thing it shows is a bar chart with the categories of police complaints in that district. It also shows a word bubble that shows the most common words for that district. This helps to give the user an understanding of what kinds of complaints are happening in that region. 
